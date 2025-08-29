@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spain: An Interactive Journey Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals & Terracotta -->
+    <!-- Application Structure Plan: The SPA is structured as a user-centric trip planning dashboard, moving away from the linear report format. The architecture consists of four main interactive sections: 1) "Choose Your Journey": Allows users to select one of three travel styles (Cultural Immersion, Balanced Explorer, Scenic & Unique) and dynamically view the corresponding 13-day itinerary. This task-oriented approach helps users immediately find a plan that fits their style. 2) "Explore Your Anchors": A tabbed interface for the three base cities (Sevilla, Malaga, Barcelona). This groups detailed information logically, preventing cognitive overload and allowing for easy comparison. 3) "Plan Your Excursions": Features an interactive comparison table and a visual process guide for the Morocco trip. This transforms static tables into decision-making tools. 4) "Traveler's Toolkit": Consolidates practical data (budget, transit, packing) into an actionable section with data visualizations. This structure was chosen to mirror a user's natural trip-planning workflow: choose a style, learn about the destinations, plan activities, and then check logistics. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Presentation -> Interaction -> Justification. 1) Itinerary Proposals -> Goal: Compare & Select -> Method: Interactive Cards + Dynamic Text Display -> Interaction: User clicks a card to reveal the full day-by-day plan. -> Justification: More engaging than reading three long lists; facilitates direct comparison. 2) City Details -> Goal: Inform & Organize -> Method: Tabbed Content Panels -> Interaction: User clicks tabs for Sevilla, Malaga, or Barcelona. -> Justification: Organizes a large amount of text into digestible, user-controlled chunks. 3) Day Trip Comparison -> Goal: Decide -> Method: Interactive HTML Table -> Interaction: Hover effects highlight rows for better readability. -> Justification: Makes dense data scannable and easier to compare than a static image or text block. 4) Budget Data -> Goal: Understand Costs -> Method: Bar Chart (Chart.js/Canvas) -> Interaction: Tooltips on hover provide exact figures. -> Justification: Visualizes cost differences between cities more effectively than a simple table. 5) Morocco Crossing -> Goal: Understand Process -> Method: Numbered Step-by-Step HTML/CSS Diagram -> Interaction: Static visual guide. -> Justification: Simplifies a complex logistical process into clear, sequential steps. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+        }
+        .bg-primary { background-color: #FDFBF8; }
+        .bg-secondary { background-color: #FFFFFF; }
+        .bg-accent { background-color: #D97706; } /* Amber 600 */
+        .text-accent { color: #D97706; }
+        .border-accent { border-color: #D97706; }
+        .nav-link {
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 9999px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .nav-link.active {
+            background-color: #D97706;
+            color: white;
+        }
+        .nav-link:not(.active):hover {
+            background-color: #FDE68A; /* Amber 200 */
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            border-color: #D97706;
+            color: #D97706;
+            background-color: #FFFBEB; /* Amber 50 */
+        }
+        .itinerary-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .itinerary-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+        .itinerary-card.selected {
+            border-color: #D97706;
+            box-shadow: 0 0 0 3px #FDE68A;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-primary">
+
+    <header class="bg-secondary/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-accent">Spain Trip Planner</h1>
+            <div class="hidden md:flex items-center space-x-2">
+                <a href="#journeys" class="nav-link active">Journeys</a>
+                <a href="#anchors" class="nav-link">Anchors</a>
+                <a href="#excursions" class="nav-link">Excursions</a>
+                <a href="#toolkit" class="nav-link">Toolkit</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        <section id="intro" class="text-center mb-16">
+            <h2 class="text-4xl font-bold mb-4">Craft Your Ideal Spanish Journey</h2>
+            <p class="max-w-3xl mx-auto text-lg text-gray-600">This interactive guide translates a comprehensive travel report into a dynamic planning tool. Explore three curated 13-day itineraries, dive into the details of each destination, and find all the logistical information you need to create an unforgettable trip through Andalusia and Catalonia.</p>
+        </section>
+
+        <!-- Section 1: Choose Your Journey -->
+        <section id="journeys" class="mb-16 scroll-mt-20">
+            <h3 class="text-3xl font-bold text-center mb-2">1. Choose Your Journey</h3>
+            <p class="text-center text-gray-600 mb-8">Select a travel style to reveal a detailed 13-day itinerary tailored to your pace.</p>
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div id="itinerary-A" class="itinerary-card bg-secondary p-6 rounded-lg shadow-md border-2 border-transparent cursor-pointer">
+                    <h4 class="text-xl font-bold text-accent mb-2">A: The Cultural Immersion</h4>
+                    <p class="text-gray-600">An intensive, fast-paced itinerary to experience the maximum number of Andalusia's iconic historical and artistic sites.</p>
+                </div>
+                <div id="itinerary-B" class="itinerary-card bg-secondary p-6 rounded-lg shadow-md border-2 border-transparent cursor-pointer selected">
+                    <h4 class="text-xl font-bold text-accent mb-2">B: The Balanced Explorer</h4>
+                    <p class="text-gray-600">A perfect blend of iconic sightseeing and leisure time, offering a deep, relaxed appreciation of each base city.</p>
+                </div>
+                <div id="itinerary-C" class="itinerary-card bg-secondary p-6 rounded-lg shadow-md border-2 border-transparent cursor-pointer">
+                    <h4 class="text-xl font-bold text-accent mb-2">C: The Scenic & Unique Route</h4>
+                    <p class="text-gray-600">For the adventurous traveler prioritizing dramatic landscapes and unique cultural encounters over historical checklists.</p>
+                </div>
+            </div>
+            <div id="itinerary-details" class="bg-secondary p-8 rounded-lg shadow-lg">
+                <!-- Itinerary content will be injected here by JS -->
+            </div>
+        </section>
+
+        <!-- Section 2: Explore Your Anchors -->
+        <section id="anchors" class="mb-16 scroll-mt-20">
+            <h3 class="text-3xl font-bold text-center mb-2">2. Explore Your Anchors</h3>
+            <p class="text-center text-gray-600 mb-8">Discover the unique character and key experiences of your three base cities.</p>
+            <div class="flex justify-center border-b mb-6">
+                <button class="tab-button py-2 px-6 text-lg font-medium border-b-2 active" data-tab="sevilla">Sevilla</button>
+                <button class="tab-button py-2 px-6 text-lg font-medium border-b-2" data-tab="malaga">Malaga</button>
+                <button class="tab-button py-2 px-6 text-lg font-medium border-b-2" data-tab="barcelona">Barcelona</button>
+            </div>
+            <div id="tab-content" class="bg-secondary p-8 rounded-lg shadow-lg">
+                <!-- Tab content will be injected here by JS -->
+            </div>
+        </section>
+
+        <!-- Section 3: Plan Your Excursions -->
+        <section id="excursions" class="mb-16 scroll-mt-20">
+            <h3 class="text-3xl font-bold text-center mb-2">3. Plan Your Excursions</h3>
+            <p class="text-center text-gray-600 mb-8">Compare potential day trips from Andalusia and understand the logistics of the journey to Morocco.</p>
+            <div class="grid lg:grid-cols-2 gap-12">
+                <div class="bg-secondary p-8 rounded-lg shadow-lg">
+                    <h4 class="text-2xl font-bold mb-4">Andalusian Jewels: A Comparison</h4>
+                    <p class="mb-6">Use this guide to decide which day trips best fit your interests. Sevilla is the ideal launchpad for Cordoba, while Malaga offers the best access to the others.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-amber-50">
+                                    <th class="p-3 font-semibold">Destination</th>
+                                    <th class="p-3 font-semibold">Vibe</th>
+                                    <th class="p-3 font-semibold">Best From</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="p-3 font-medium text-accent">Granada</td>
+                                    <td class="p-3">Grandiose, Moorish</td>
+                                    <td class="p-3">Malaga</td>
+                                </tr>
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="p-3 font-medium text-accent">Cordoba</td>
+                                    <td class="p-3">Intimate, historic</td>
+                                    <td class="p-3">Sevilla</td>
+                                </tr>
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="p-3 font-medium text-accent">Ronda</td>
+                                    <td class="p-3">Dramatic, scenic</td>
+                                    <td class="p-3">Malaga</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="p-3 font-medium text-accent">Gibraltar</td>
+                                    <td class="p-3">Unique, British</td>
+                                    <td class="p-3">Malaga</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-secondary p-8 rounded-lg shadow-lg">
+                    <h4 class="text-2xl font-bold mb-4">The Tangier Expedition</h4>
+                     <p class="mb-6">A day trip to Morocco is an adventure. Follow these key steps for a smooth journey across the Strait of Gibraltar.</p>
+                    <ol class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="flex-shrink-0 w-8 h-8 bg-accent text-white font-bold rounded-full flex items-center justify-center mr-4">1</span>
+                            <div><h5 class="font-semibold">Bus to Tarifa</h5><p class="text-sm text-gray-600">Take an early bus from Malaga to the port town of Tarifa. This is crucial as its ferries arrive directly in Tangier's city center.</p></div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="flex-shrink-0 w-8 h-8 bg-accent text-white font-bold rounded-full flex items-center justify-center mr-4">2</span>
+                            <div><h5 class="font-semibold">Get Ferry Tickets</h5><p class="text-sm text-gray-600">Book online in advance. Arrive at the port 60-90 minutes early to exchange your e-ticket for a paper boarding pass.</p></div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="flex-shrink-0 w-8 h-8 bg-accent text-white font-bold rounded-full flex items-center justify-center mr-4">3</span>
+                            <div><h5 class="font-semibold">Onboard Passport Control</h5><p class="text-sm text-gray-600">This is the most important step. Find the Moroccan police onboard the ferry and get your passport stamped during the 1-hour crossing.</p></div>
+                        </li>
+                         <li class="flex items-start">
+                            <span class="flex-shrink-0 w-8 h-8 bg-accent text-white font-bold rounded-full flex items-center justify-center mr-4">4</span>
+                            <div><h5 class="font-semibold">Arrive in Tangier</h5><p class="text-sm text-gray-600">Disembark at Tangier Ville port. A pre-booked guide is highly recommended to maximize your time and avoid hassles.</p></div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Traveler's Toolkit -->
+        <section id="toolkit" class="scroll-mt-20">
+            <h3 class="text-3xl font-bold text-center mb-2">4. Traveler's Toolkit</h3>
+            <p class="text-center text-gray-600 mb-8">Essential logistics for a seamless journey, from budgets to packing.</p>
+            <div class="grid lg:grid-cols-2 gap-12">
+                 <div class="bg-secondary p-8 rounded-lg shadow-lg">
+                    <h4 class="text-2xl font-bold mb-4">Mid-Range Daily Budget Visualizer</h4>
+                    <p class="mb-6">This chart shows the estimated daily cost per person, excluding inter-city travel. Barcelona is notably more expensive, primarily due to accommodation costs.</p>
+                    <div class="chart-container">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-secondary p-8 rounded-lg shadow-lg">
+                    <h4 class="text-2xl font-bold mb-4">September Packing Essentials</h4>
+                    <p class="mb-6">September offers beautiful weather, but requires some versatility in your wardrobe. The weather is generally warm and sunny, but evenings can be cool.</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-center"><span class="text-accent text-xl mr-3">👟</span> Comfortable walking shoes are non-negotiable.</li>
+                        <li class="flex items-center"><span class="text-accent text-xl mr-3"> layering clothes.</li>
+                        <li class="flex items-center"><span class="text-accent text-xl mr-3">🧥</span> A light jacket or sweater for cooler evenings.</li>
+                        <li class="flex items-center"><span class="text-accent text-xl mr-3">☀️</span> Sun protection: sunscreen, sunglasses, and a hat.</li>
+                        <li class="flex items-center"><span class="text-accent text-xl mr-3">🎒</span> A theft-proof bag, especially for Barcelona.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-secondary mt-16">
+        <div class="container mx-auto px-6 py-4 text-center text-gray-500">
+            <p>&copy; 2025 Interactive Journey Planner. Data adapted from expert travel report.</p>
+        </div>
+    </footer>
+
+<script>
+const itineraries = {
+    A: {
+        title: "Itinerary A: The Cultural Immersion",
+        details: `
+            <h5 class="text-2xl font-bold mb-4">A Deep Dive into Andalusian & Catalonian Culture</h5>
+            <div class="grid md:grid-cols-3 gap-6 text-sm">
+                <div>
+                    <h6 class="font-semibold text-accent">Days 1-4: Sevilla (4 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 1:</strong> Arrive, Santa Cruz quarter walk.</li>
+                        <li><strong>Day 2:</strong> Real Alcázar & Cathedral/Giralda.</li>
+                        <li><strong>Day 3:</strong> Day Trip to Cordoba (High-speed train).</li>
+                        <li><strong>Day 4:</strong> Plaza de España & Triana for flamenco.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 5-9: Malaga (5 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 5:</strong> Travel to Malaga, explore port.</li>
+                        <li><strong>Day 6:</strong> Day Trip to Granada (Alhambra - book months ahead).</li>
+                        <li><strong>Day 7:</strong> Malaga's Alcazaba & Picasso Museum.</li>
+                        <li><strong>Day 8:</strong> Day Trip to Ronda.</li>
+                        <li><strong>Day 9:</strong> Fly from Malaga (AGP) to Barcelona (BCN).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 10-13: Barcelona (4 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 10:</strong> Sagrada Família & Park Güell.</li>
+                        <li><strong>Day 11:</strong> Gothic Quarter & El Born district.</li>
+                        <li><strong>Day 12:</strong> Montjuïc Hill & beach time.</li>
+                        <li><strong>Day 13:</strong> Departure.</li>
+                    </ul>
+                </div>
+            </div>`
+    },
+    B: {
+        title: "Itinerary B: The Balanced Explorer",
+        details: `
+            <h5 class="text-2xl font-bold mb-4">A Balanced Blend of Sights & Leisure</h5>
+            <div class="grid md:grid-cols-3 gap-6 text-sm">
+                <div>
+                    <h6 class="font-semibold text-accent">Days 1-5: Sevilla (5 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 1:</strong> Arrive, evening tapas crawl.</li>
+                        <li><strong>Day 2:</strong> Unhurried visit to Real Alcázar & Cathedral.</li>
+                        <li><strong>Day 3:</strong> Day Trip to Cordoba.</li>
+                        <li><strong>Day 4:</strong> Sevilla at leisure (Triana market, Las Setas).</li>
+                        <li><strong>Day 5:</strong> Travel to Malaga, relax on the beach.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 6-9: Malaga (4 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 6:</strong> Day Trip to Granada (Alhambra focus).</li>
+                        <li><strong>Day 7:</strong> Malaga's art & history (Picasso Museum, Alcazaba).</li>
+                        <li><strong>Day 8:</strong> Malaga at leisure (shopping, rooftop cocktails).</li>
+                        <li><strong>Day 9:</strong> Fly from Malaga (AGP) to Barcelona (BCN).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 10-13: Barcelona (4 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 10:</strong> Gaudí Day (Sagrada Família, Casa Batlló).</li>
+                        <li><strong>Day 11:</strong> Old City Wanderings (Gothic Quarter, El Born).</li>
+                        <li><strong>Day 12:</strong> Park Güell & explore Gràcia neighborhood.</li>
+                        <li><strong>Day 13:</strong> Departure.</li>
+                    </ul>
+                </div>
+            </div>`
+    },
+    C: {
+        title: "Itinerary C: The Scenic & Unique Route",
+        details: `
+            <h5 class="text-2xl font-bold mb-4">An Adventure of Landscapes & Unique Encounters</h5>
+            <div class="grid md:grid-cols-3 gap-6 text-sm">
+                <div>
+                    <h6 class="font-semibold text-accent">Days 1-3: Sevilla (3 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 1:</strong> Arrive, explore Santa Cruz.</li>
+                        <li><strong>Day 2:</strong> Sevilla Highlights (Alcázar & Cathedral).</li>
+                        <li><strong>Day 3:</strong> Travel to Malaga, explore historic center.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 4-9: Malaga (6 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 4:</strong> Day Trip to Ronda & White Villages.</li>
+                        <li><strong>Day 5:</strong> Malaga's Alcazaba & Gibralfaro.</li>
+                        <li><strong>Day 6:</strong> Day Trip to Gibraltar (Bring Passport!).</li>
+                        <li><strong>Day 7:</strong> Rest & Recover in Malaga.</li>
+                        <li><strong>Day 8:</strong> Day Trip to Tangier, Morocco (Long day!).</li>
+                        <li><strong>Day 9:</strong> Fly from Malaga (AGP) to Barcelona (BCN).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="font-semibold text-accent">Days 10-13: Barcelona (4 Nights)</h6>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Day 10:</strong> Gaudí's Greatest Hits.</li>
+                        <li><strong>Day 11:</strong> Gothic Quarter & La Rambla.</li>
+                        <li><strong>Day 12:</strong> Flexible Day (Montjuïc or Montserrat).</li>
+                        <li><strong>Day 13:</strong> Departure.</li>
+                    </ul>
+                </div>
+            </div>`
+    }
+};
+
+const cityTabs = {
+    sevilla: `
+        <h5 class="text-2xl font-bold mb-4">Sevilla: The Soul of Andalusia</h5>
+        <p class="mb-6 text-gray-600">A city of passion, history, and palpable atmosphere, where grand monuments meet hidden courtyards. Sevilla is quintessentially Spanish—historic, romantic, and deeply connected to the traditions of flamenco and tapas.</p>
+        <ul class="grid md:grid-cols-2 gap-4">
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>The Monumental Trio:</strong> Explore the UNESCO complex of the Real Alcázar, the world's largest Gothic Cathedral, and the Giralda bell tower.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Plaza de España:</strong> A breathtaking architectural wonder built for the 1929 Ibero-American Exposition.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Authentic Flamenco:</strong> Experience the raw, passionate art form in its spiritual home, especially in the Triana district.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Santa Cruz Quarter:</strong> Get lost in the delightful maze of cobblestone streets in the city's former Jewish quarter.</li>
+        </ul>`,
+    malaga: `
+        <h5 class="text-2xl font-bold mb-4">Malaga: The Reimagined Costa del Sol</h5>
+        <p class="mb-6 text-gray-600">Malaga has masterfully evolved into a vibrant cultural destination. Its vibe is a dynamic fusion of ancient history and breezy, modern beach life, appealing to both art lovers and sun-seekers.</p>
+        <ul class="grid md:grid-cols-2 gap-4">
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Moorish Fortresses:</strong> Discover the Alcazaba, a well-preserved palace-fortress, and the hilltop Castillo de Gibralfaro for commanding views.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>The Art Hub:</strong> Visit the excellent Picasso Museum, the Carmen Thyssen Museum, and the colorful Pompidou Centre at the port.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Modern Port & City Life:</strong> Stroll the lively Muelle Uno promenade and explore the elegant shopping street of Calle Larios.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Atarazanas Market:</strong> A feast for the senses, housed in a stunning 14th-century building with a magnificent stained-glass window.</li>
+        </ul>`,
+    barcelona: `
+        <h5 class="text-2xl font-bold mb-4">Barcelona: Gaudí's Grand Finale</h5>
+        <p class="mb-6 text-gray-600">A city of immense character, defined by its cosmopolitan outlook, groundbreaking art, and a distinct Catalan identity. Its vibe is a captivating blend of avant-garde creativity and medieval history.</p>
+        <ul class="grid md:grid-cols-2 gap-4">
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Gaudí's Masterpieces:</strong> Marvel at the still-unfinished La Sagrada Família, the whimsical Park Güell, and the fantastical houses of Casa Batlló and Casa Milà.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>The Historic Heart:</strong> Wander the labyrinthine streets of the Gothic Quarter and the trendy El Born district.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>City Rhythms:</strong> Experience the bustling La Rambla and the vibrant La Boqueria market.</li>
+            <li class="bg-amber-50 p-4 rounded-lg"><strong>Beach Scene:</strong> Relax on the city's beaches, venturing beyond the main Barceloneta for quieter stretches of sand.</li>
+        </ul>`
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const itineraryDetailsContainer = document.getElementById('itinerary-details');
+    const itineraryCards = document.querySelectorAll('.itinerary-card');
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContentContainer = document.getElementById('tab-content');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    function updateItinerary(id) {
+        const itinerary = itineraries[id];
+        itineraryDetailsContainer.innerHTML = itinerary.details;
+        itineraryCards.forEach(card => card.classList.remove('selected'));
+        document.getElementById(`itinerary-${id}`).classList.add('selected');
+    }
+
+    function updateTab(tabName) {
+        tabContentContainer.innerHTML = cityTabs[tabName];
+        tabButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+    }
+
+    itineraryCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const id = card.id.split('-')[1];
+            updateItinerary(id);
+        });
+    });
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            updateTab(button.dataset.tab);
+        });
+    });
+
+    updateItinerary('B');
+    updateTab('sevilla');
+
+    const budgetCtx = document.getElementById('budgetChart').getContext('2d');
+    const budgetChart = new Chart(budgetCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Sevilla', 'Malaga', 'Barcelona'],
+            datasets: [{
+                label: 'Avg. Daily Cost (€)',
+                data: [145, 143, 208],
+                backgroundColor: [
+                    'rgba(251, 191, 36, 0.6)',
+                    'rgba(245, 158, 11, 0.6)',
+                    'rgba(217, 119, 6, 0.6)'
+                ],
+                borderColor: [
+                    '#FBBF24',
+                    '#F59E0B',
+                    '#D97706'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Euros (€)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Avg. Daily Cost: €${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const sections = document.querySelectorAll('section');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: "-50% 0px -50% 0px" });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+
+    navLinks.forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
+</script>
+</body>
+</html>
